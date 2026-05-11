@@ -18,10 +18,10 @@ PopLine 序列化格式的 Java 实现。
 import com.popline.*;
 
 // 解析
-PlnValue v = PopLineParser.parse("{\nkey: \"value\"\n");
+PlnValue v = Pln.parse("{\nkey: \"value\"\n");
 
 // 序列化
-String text = PopLineSerializer.serialize(v);
+String text = Pln.stringify(v);
 
 // 构建 DOM
 PlnValue obj = PlnValue.newObject();
