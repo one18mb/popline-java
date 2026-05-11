@@ -10,11 +10,11 @@ import static org.junit.jupiter.api.Assertions.*;
 public class PopLineTest {
 
     private PlnValue parse(String text) {
-        return new PopLineParser().parse(text);
+        return Pln.parse(text);
     }
 
     private String serialize(PlnValue v) {
-        return new PopLineSerializer().serialize(v);
+        return Pln.stringify(v);
     }
 
     // ═══════════════ Unit Tests ═══════════════
