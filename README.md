@@ -29,6 +29,15 @@ obj.addToObject("name", PlnValue.newString("test"));
 obj.addToObject("count", PlnValue.newInt(42));
 ```
 
+## 性能
+
+测试数据：`package.json`（17011 字节） / `package.pln`（13074 字节，76.9%）
+
+| 操作 | org.json | popline | 比 |
+|------|---------|---------|------|
+| 解析 | 1437 ms | 1402 ms | **0.98x** |
+| 序列化 | 1733 ms | 703 ms | **0.41x** |
+
 ## 构建
 
 ```bash
