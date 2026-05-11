@@ -18,10 +18,10 @@ Java implementation of the PopLine serialization format.
 import com.popline.*;
 
 // Parse
-PlnValue v = PopLineParser.parse("{\nkey: \"value\"\n");
+PlnValue v = Pln.parse("{\nkey: \"value\"\n");
 
 // Serialize
-String text = PopLineSerializer.serialize(v);
+String text = Pln.stringify(v);
 
 // Build DOM
 PlnValue obj = PlnValue.newObject();
