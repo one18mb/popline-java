@@ -18,10 +18,8 @@ public class PlnValue {
 
     public PlnValue(Type type) {
         this.type = type;
-        switch (type) {
-            case OBJECT -> objectVal = new LinkedHashMap<>();
-            case ARRAY  -> arrayVal = new ArrayList<>();
-        }
+        if (type == Type.OBJECT) objectVal = new LinkedHashMap<>();
+        if (type == Type.ARRAY)  arrayVal = new ArrayList<>();
     }
 
     public static PlnValue newObject() { return new PlnValue(Type.OBJECT); }
@@ -68,29 +66,32 @@ public class PlnValue {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof PlnValue other)) return false;
+        if (!(o instanceof PlnValue)) return false;
+        PlnValue other = (PlnValue) o;
         if (type != other.type) return false;
-        return switch (type) {
-            case NULL   -> true;
-            case BOOL   -> boolVal == other.boolVal;
-            case INT    -> intVal == other.intVal;
-            case FLOAT  -> floatVal == other.floatVal;
-            case STRING -> stringVal.equals(other.stringVal);
-            case OBJECT -> objectVal.equals(other.objectVal);
-            case ARRAY  -> arrayVal.equals(other.arrayVal);
-        };
+        switch (type) {
+            case NULL:   return true;
+            case BOOL:   return boolVal == other.boolVal;
+            case INT:    return intVal == other.intVal;
+            case FLOAT:  return floatVal == other.floatVal;
+            case STRING: return stringVal.equals(other.stringVal);
+            case OBJECT: return objectVal.equals(other.objectVal);
+            case ARRAY:  return arrayVal.equals(other.arrayVal);
+        }
+        return false;
     }
 
     @Override
     public String toString() {
-        return switch (type) {
-            case NULL   -> "null";
-            case BOOL   -> String.valueOf(boolVal);
-            case INT    -> String.valueOf(intVal);
-            case FLOAT  -> String.valueOf(floatVal);
-            case STRING -> "\"" + stringVal.replace("\"", "\"\"") + "\"";
-            case OBJECT -> objectVal.toString();
-            case ARRAY  -> arrayVal.toString();
-        };
+        switch (type) {
+            case NULL:   return "null";
+            case BOOL:   return String.valueOf(boolVal);
+            case INT:    return String.valueOf(intVal);
+            case FLOAT:  return String.valueOf(floatVal);
+            case STRING: return "\"" + stringVal.replace("\"", "\"\"") + "\"";
+            case OBJECT: return objectVal.toString();
+            case ARRAY:  return arrayVal.toString();
+        }
+        return "?";
     }
 }

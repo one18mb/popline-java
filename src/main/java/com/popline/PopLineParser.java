@@ -31,8 +31,8 @@ public class PopLineParser {
 
             try {
                 Object result = processLine(line, frames, root, key);
-                if (result instanceof PlnValue r) root = r;
-                else if (result instanceof String k) key = k;
+                if (result instanceof PlnValue) root = (PlnValue) result;
+                else if (result instanceof String) key = (String) result;
             } catch (PlnParseException e) {
                 error = e.getMessage();
                 return null;
@@ -44,15 +44,15 @@ public class PopLineParser {
         return root;
     }
 
-    private Object processLine(String line, Deque<PlnValue> frames, PlnValue root, String key) {
+    private Object processLine(String line, Deque<PlnValue> frames, PlnValue ignoredRoot, String key) {
         // handle multi-line strings
         if (inString) {
-            handleStringLine(line, frames, root, key);
-            return root;
+            handleStringLine(line, frames, null, key);
+            return null;
         }
 
         // skip empty lines (message separators)
-        if (line.isEmpty()) return root;
+        if (line.isEmpty()) return null;
 
         // parse pop prefix
         int popCount = 0;
@@ -77,7 +77,7 @@ public class PopLineParser {
             throw new PlnParseException("bare pop line not allowed");
         }
 
-        // root level
+        // root level — return the new root to the caller
         if (frames.isEmpty()) {
             if (rest.equals("{")) {
                 PlnValue obj = PlnValue.newObject();
@@ -93,13 +93,14 @@ public class PopLineParser {
 
         PlnValue top = frames.getLast();
         if (top.getType() == PlnValue.Type.OBJECT) {
-            return parseObjectLine(rest, frames, top);
+            parseObjectLine(rest, frames, top);
         } else {
-            return parseArrayLine(rest, frames, top);
+            parseArrayLine(rest, frames, top);
         }
+        return null; // don't overwrite root
     }
 
-    private Object parseObjectLine(String rest, Deque<PlnValue> frames, PlnValue top) {
+    private void parseObjectLine(String rest, Deque<PlnValue> frames, PlnValue top) {
         int sep = rest.indexOf(": ");
         if (sep < 0) {
             throw new PlnParseException("object line must be 'key: value': " + rest);
@@ -122,10 +123,9 @@ public class PopLineParser {
             PlnValue val = parseScalar(valPart);
             top.addToObject(key, val);
         }
-        return top;
     }
 
-    private Object parseArrayLine(String rest, Deque<PlnValue> frames, PlnValue top) {
+    private void parseArrayLine(String rest, Deque<PlnValue> frames, PlnValue top) {
         if (rest.equals("{")) {
             PlnValue obj = PlnValue.newObject();
             top.addToArray(obj);
@@ -138,7 +138,6 @@ public class PopLineParser {
             PlnValue val = parseScalar(rest);
             top.addToArray(val);
         }
-        return top;
     }
 
     private PlnValue parseScalar(String s) {

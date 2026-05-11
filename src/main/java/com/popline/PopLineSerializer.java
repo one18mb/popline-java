@@ -20,34 +20,56 @@ public class PopLineSerializer {
                             int[] pendingPop, boolean[] needKey,
                             boolean[] awaitingValue, PlnValue value) {
         switch (value.getType()) {
-            case OBJECT -> {
-                startContainer(buf, stack, pendingPop, needKey, awaitingValue, '{', 'o');
-                for (Map.Entry<String, PlnValue> entry : value.getObject().entrySet()) {
-                    flushPop(buf, stack, pendingPop, needKey, awaitingValue);
-                    buf.append(entry.getKey()).append(": ");
-                    needKey[0] = false;
-                    awaitingValue[0] = true;
-                    writeValue(buf, stack, pendingPop, needKey, awaitingValue, entry.getValue());
-                }
-                stack.removeLast();
-                pendingPop[0]++;
-                if (!stack.isEmpty() && stack.getLast() == 'o') needKey[0] = true;
-            }
-            case ARRAY -> {
-                startContainer(buf, stack, pendingPop, needKey, awaitingValue, '[', 'a');
-                for (PlnValue item : value.getArray()) {
-                    writeValue(buf, stack, pendingPop, needKey, awaitingValue, item);
-                }
-                stack.removeLast();
-                pendingPop[0]++;
-                if (!stack.isEmpty() && stack.getLast() == 'o') needKey[0] = true;
-            }
-            case NULL   -> putScalar(buf, stack, pendingPop, needKey, awaitingValue, "null");
-            case BOOL   -> putScalar(buf, stack, pendingPop, needKey, awaitingValue, value.getBool() ? "true" : "false");
-            case INT    -> putScalar(buf, stack, pendingPop, needKey, awaitingValue, String.valueOf(value.getInt()));
-            case FLOAT  -> putScalar(buf, stack, pendingPop, needKey, awaitingValue, String.valueOf(value.getFloat()));
-            case STRING -> putString(buf, stack, pendingPop, needKey, awaitingValue, value.getString());
+            case OBJECT:
+                writeObject(buf, stack, pendingPop, needKey, awaitingValue, value);
+                break;
+            case ARRAY:
+                writeArray(buf, stack, pendingPop, needKey, awaitingValue, value);
+                break;
+            case NULL:
+                putScalar(buf, stack, pendingPop, needKey, awaitingValue, "null");
+                break;
+            case BOOL:
+                putScalar(buf, stack, pendingPop, needKey, awaitingValue, value.getBool() ? "true" : "false");
+                break;
+            case INT:
+                putScalar(buf, stack, pendingPop, needKey, awaitingValue, String.valueOf(value.getInt()));
+                break;
+            case FLOAT:
+                putScalar(buf, stack, pendingPop, needKey, awaitingValue, String.valueOf(value.getFloat()));
+                break;
+            case STRING:
+                putString(buf, stack, pendingPop, needKey, awaitingValue, value.getString());
+                break;
         }
+    }
+
+    private void writeObject(StringBuilder buf, Deque<Character> stack,
+                             int[] pendingPop, boolean[] needKey,
+                             boolean[] awaitingValue, PlnValue value) {
+        startContainer(buf, stack, pendingPop, needKey, awaitingValue, '{', 'o');
+        for (Map.Entry<String, PlnValue> entry : value.getObject().entrySet()) {
+            flushPop(buf, stack, pendingPop, needKey, awaitingValue);
+            buf.append(entry.getKey()).append(": ");
+            needKey[0] = false;
+            awaitingValue[0] = true;
+            writeValue(buf, stack, pendingPop, needKey, awaitingValue, entry.getValue());
+        }
+        stack.removeLast();
+        pendingPop[0]++;
+        if (!stack.isEmpty() && stack.getLast() == 'o') needKey[0] = true;
+    }
+
+    private void writeArray(StringBuilder buf, Deque<Character> stack,
+                            int[] pendingPop, boolean[] needKey,
+                            boolean[] awaitingValue, PlnValue value) {
+        startContainer(buf, stack, pendingPop, needKey, awaitingValue, '[', 'a');
+        for (PlnValue item : value.getArray()) {
+            writeValue(buf, stack, pendingPop, needKey, awaitingValue, item);
+        }
+        stack.removeLast();
+        pendingPop[0]++;
+        if (!stack.isEmpty() && stack.getLast() == 'o') needKey[0] = true;
     }
 
     private void startContainer(StringBuilder buf, Deque<Character> stack,
