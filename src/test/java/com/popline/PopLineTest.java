@@ -41,10 +41,10 @@ public class PopLineTest {
     }
 
     @Test void testPop() {
-        PlnValue v = parse("{\nouter: {\ninner: \"x\"\n1 mid: \"y\"\n");
+        PlnValue v = parse("{\nouter: {\ninner: \"x\" 1\nmid: \"y\"\n");
         assertTrue(v.getObject().containsKey("mid"));
 
-        v = parse("{\na: {\nb: {\nc: \"deep\"\n2 x: \"top\"\n");
+        v = parse("{\na: {\nb: {\nc: \"deep\" 2\nx: \"top\"\n");
         assertEquals("top", v.getObject().get("x").getString());
     }
 
@@ -69,9 +69,9 @@ public class PopLineTest {
     @Test void testRoundtrip() {
         String[] cases = {
             "{\na: 1\n",
-            "{\na: {\nb: 1\nc: 2\n1 d: 3\n",
+            "{\na: {\nb: 1\nc: 2 1\nd: 3\n",
             "[\n1\n2\n3\n",
-            "{\na: [\n1\n2\n1 b: true\n",
+            "{\na: [\n1\n2 1\nb: true\n",
             "{\na: true\nb: false\nc: null\n",
         };
         for (String input : cases) {

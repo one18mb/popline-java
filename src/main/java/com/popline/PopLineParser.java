@@ -55,35 +55,7 @@ public class PopLineParser {
         // skip empty lines (message separators)
         if (line.isEmpty()) return null;
 
-        // prefix pop detection: only for containers ({, [) or key:value lines (containing ": ")
-        int popCount = 0;
-        int valueStart = 0;
-        int i = 0;
-        while (i < line.length() && Character.isDigit(line.charAt(i))) i++;
-        if (i > 0 && i < line.length() && line.charAt(i) == ' ') {
-            int after = i + 1;
-            while (after < line.length() && line.charAt(after) == ' ') after++;
-            if (after < line.length()) {
-                char nc = line.charAt(after);
-                if (nc == '{' || nc == '[' || line.substring(after).contains(": ")) {
-                    popCount = Integer.parseInt(line.substring(0, i));
-                    valueStart = i + 1;
-                }
-            }
-        }
-
-        // pop layers (with root protection)
-        for (int p = 0; p < popCount; p++) {
-            if (frames.size() <= 1) {
-                throw new PlnParseException("pop exceeds nesting depth");
-            }
-            frames.removeLast();
-        }
-
-        String rest = line.substring(valueStart);
-        if (rest.isEmpty()) {
-            throw new PlnParseException("bare pop line not allowed");
-        }
+        String rest = line;
 
         // root level — return the new root to the caller
         if (frames.isEmpty()) {
@@ -176,7 +148,7 @@ public class PopLineParser {
         } else {
             // Check for suffix pop (only for leaf values)
             StringBuilder sb = new StringBuilder(valPart);
-            int suffixPop = trimPopSuffix(sb);
+            int suffixPop = fwdTrimPopSuffix(sb);
             String trimmedVal = sb.toString();
             if (trimmedVal.isEmpty()) {
                 throw new PlnParseException("empty value");
@@ -190,7 +162,7 @@ public class PopLineParser {
             top.addToObject(key, val);
             // Apply suffix pop (with root protection)
             for (int p = 0; p < suffixPop; p++) {
-                if (frames.size() <= 1) break;
+                if (frames.isEmpty()) break;
                 frames.removeLast();
             }
         }
@@ -216,7 +188,7 @@ public class PopLineParser {
         } else {
             // Check for suffix pop (only for leaf values)
             StringBuilder sb = new StringBuilder(rest);
-            int suffixPop = trimPopSuffix(sb);
+            int suffixPop = fwdTrimPopSuffix(sb);
             String trimmedRest = sb.toString();
             if (trimmedRest.isEmpty()) {
                 throw new PlnParseException("empty value");
@@ -229,7 +201,7 @@ public class PopLineParser {
             top.addToArray(val);
             // Apply suffix pop (with root protection)
             for (int p = 0; p < suffixPop; p++) {
-                if (frames.size() <= 1) break;
+                if (frames.isEmpty()) break;
                 frames.removeLast();
             }
         }
@@ -324,7 +296,7 @@ public class PopLineParser {
                     }
                     // apply suffix pop (with root protection)
                     for (int p = 0; p < suffixPop; p++) {
-                        if (frames.size() <= 1) break;
+                        if (frames.isEmpty()) break;
                         frames.removeLast();
                     }
                     return;
@@ -343,20 +315,25 @@ public class PopLineParser {
      * If so, removes the suffix from the StringBuilder and returns the pop count.
      * Returns 0 if no pop suffix is present.
      */
-    private int trimPopSuffix(StringBuilder sb) {
-        if (sb.length() < 2) return 0;
-        int i = sb.length() - 1;
-        char c = sb.charAt(i);
-        if (c < '0' || c > '9') return 0;
-        while (i > 0) {
-            char pc = sb.charAt(i - 1);
-            if (pc >= '0' && pc <= '9') i--;
-            else break;
+    /** Forward-scan for " N" pop suffix: when space found, check if rest is all digits */
+    private int fwdTrimPopSuffix(StringBuilder sb) {
+        boolean inString = false;
+        for (int i = 0; i < sb.length(); i++) {
+            char c = sb.charAt(i);
+            if (c == '"') inString = !inString;
+            if (!inString && c == ' ') {
+                boolean allDigits = true;
+                for (int j = i + 1; j < sb.length(); j++) {
+                    if (sb.charAt(j) < '0' || sb.charAt(j) > '9') { allDigits = false; break; }
+                }
+                if (allDigits && i + 1 < sb.length()) {
+                    int popCount = Integer.parseInt(sb.substring(i + 1));
+                    sb.setLength(i);
+                    return popCount;
+                }
+            }
         }
-        if (i == 0 || sb.charAt(i - 1) != ' ') return 0;
-        int popCount = Integer.parseInt(sb.substring(i));
-        sb.setLength(i - 1);
-        return popCount;
+        return 0;
     }
 
     /**
