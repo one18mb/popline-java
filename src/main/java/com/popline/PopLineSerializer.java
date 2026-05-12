@@ -63,13 +63,64 @@ public class PopLineSerializer {
     private void writeArray(StringBuilder buf, Deque<Character> stack,
                             int[] pendingPop, boolean[] needKey,
                             boolean[] awaitingValue, PlnValue value) {
-        startContainer(buf, stack, pendingPop, needKey, awaitingValue, '[', 'a');
-        for (PlnValue item : value.getArray()) {
-            writeValue(buf, stack, pendingPop, needKey, awaitingValue, item);
+        writeContainerInline(buf, stack, pendingPop, needKey, awaitingValue, value, true);
+    }
+
+    private void writeContainerInline(StringBuilder buf, Deque<Character> stack,
+                                       int[] pendingPop, boolean[] needKey,
+                                       boolean[] awaitingValue, PlnValue value, boolean first) {
+        boolean isObj = value.getType() == PlnValue.Type.OBJECT;
+        char ch = isObj ? '{' : '[';
+        char typ = isObj ? 'o' : 'a';
+
+        if (first && !stack.isEmpty() && stack.getLast() == 'o' && awaitingValue[0]) {
+            buf.append(ch);
+            awaitingValue[0] = false;
+        } else if (first) {
+            flushPop(buf, stack, pendingPop, needKey, awaitingValue);
+            buf.append(ch);
+        } else {
+            buf.append(ch);
         }
-        stack.removeLast();
-        pendingPop[0]++;
-        if (!stack.isEmpty() && stack.getLast() == 'o') needKey[0] = true;
+
+        boolean canInline = !isObj && value.getArray().size() > 0 &&
+            (value.getArray().get(0).getType() == PlnValue.Type.OBJECT ||
+             value.getArray().get(0).getType() == PlnValue.Type.ARRAY);
+
+        if (canInline) {
+            stack.addLast('a');
+            needKey[0] = false;
+            awaitingValue[0] = false;
+            writeContainerInline(buf, stack, pendingPop, needKey, awaitingValue,
+                value.getArray().get(0), false);
+            for (int i = 1; i < value.getArray().size(); i++) {
+                writeValue(buf, stack, pendingPop, needKey, awaitingValue, value.getArray().get(i));
+            }
+            stack.removeLast();
+            pendingPop[0]++;
+            if (!stack.isEmpty() && stack.getLast() == 'o') needKey[0] = true;
+        } else {
+            buf.append('\n');
+            stack.addLast(typ);
+            needKey[0] = (typ == 'o');
+            awaitingValue[0] = false;
+            if (isObj) {
+                for (java.util.Map.Entry<String, PlnValue> entry : value.getObject().entrySet()) {
+                    flushPop(buf, stack, pendingPop, needKey, awaitingValue);
+                    buf.append(entry.getKey()).append(": ");
+                    needKey[0] = false;
+                    awaitingValue[0] = true;
+                    writeValue(buf, stack, pendingPop, needKey, awaitingValue, entry.getValue());
+                }
+            } else {
+                for (PlnValue item : value.getArray()) {
+                    writeValue(buf, stack, pendingPop, needKey, awaitingValue, item);
+                }
+            }
+            stack.removeLast();
+            pendingPop[0]++;
+            if (!stack.isEmpty() && stack.getLast() == 'o') needKey[0] = true;
+        }
     }
 
     private void startContainer(StringBuilder buf, Deque<Character> stack,
