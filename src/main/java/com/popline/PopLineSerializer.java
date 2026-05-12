@@ -144,11 +144,14 @@ public class PopLineSerializer {
                            boolean[] awaitingValue, String s) {
         if (!stack.isEmpty() && stack.getLast() == 'o') {
             awaitingValue[0] = false;
-            buf.append(s).append('\n');
+            buf.append(s);
+            flushPop(buf, stack, pendingPop, needKey, awaitingValue);
+            buf.append('\n');
             needKey[0] = true;
         } else {
+            buf.append(s);
             flushPop(buf, stack, pendingPop, needKey, awaitingValue);
-            buf.append(s).append('\n');
+            buf.append('\n');
         }
     }
 
@@ -157,9 +160,6 @@ public class PopLineSerializer {
                            boolean[] awaitingValue, String s) {
         if (!stack.isEmpty() && stack.getLast() == 'o') {
             awaitingValue[0] = false;
-            needKey[0] = true;
-        } else {
-            flushPop(buf, stack, pendingPop, needKey, awaitingValue);
         }
         buf.append('"');
         for (int i = 0; i < s.length(); i++) {
@@ -167,7 +167,12 @@ public class PopLineSerializer {
             buf.append(c);
             if (c == '"') buf.append('"');
         }
-        buf.append('"').append('\n');
+        buf.append('"');
+        flushPop(buf, stack, pendingPop, needKey, awaitingValue);
+        buf.append('\n');
+        if (!stack.isEmpty() && stack.getLast() == 'o') {
+            needKey[0] = true;
+        }
     }
 
     private void flushPop(StringBuilder buf, Deque<Character> stack,

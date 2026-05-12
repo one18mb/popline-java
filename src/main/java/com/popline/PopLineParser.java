@@ -55,19 +55,26 @@ public class PopLineParser {
         // skip empty lines (message separators)
         if (line.isEmpty()) return null;
 
-        // parse pop prefix
+        // prefix pop detection: only for containers ({, [) or key:value lines (containing ": ")
         int popCount = 0;
         int valueStart = 0;
         int i = 0;
         while (i < line.length() && Character.isDigit(line.charAt(i))) i++;
         if (i > 0 && i < line.length() && line.charAt(i) == ' ') {
-            popCount = Integer.parseInt(line.substring(0, i));
-            valueStart = i + 1;
+            int after = i + 1;
+            while (after < line.length() && line.charAt(after) == ' ') after++;
+            if (after < line.length()) {
+                char nc = line.charAt(after);
+                if (nc == '{' || nc == '[' || line.substring(after).contains(": ")) {
+                    popCount = Integer.parseInt(line.substring(0, i));
+                    valueStart = i + 1;
+                }
+            }
         }
 
-        // pop layers
+        // pop layers (with root protection)
         for (int p = 0; p < popCount; p++) {
-            if (frames.isEmpty()) {
+            if (frames.size() <= 1) {
                 throw new PlnParseException("pop exceeds nesting depth");
             }
             frames.removeLast();
@@ -167,8 +174,25 @@ public class PopLineParser {
             top.addToObject(key, arr);
             frames.addLast(arr);
         } else {
-            PlnValue val = parseScalar(valPart);
+            // Check for suffix pop (only for leaf values)
+            StringBuilder sb = new StringBuilder(valPart);
+            int suffixPop = trimPopSuffix(sb);
+            String trimmedVal = sb.toString();
+            if (trimmedVal.isEmpty()) {
+                throw new PlnParseException("empty value");
+            }
+            PlnValue val = parseScalar(trimmedVal);
+            if (val == null) {
+                // multi-line string started, save the key
+                currentKey = key;
+                return;
+            }
             top.addToObject(key, val);
+            // Apply suffix pop (with root protection)
+            for (int p = 0; p < suffixPop; p++) {
+                if (frames.size() <= 1) break;
+                frames.removeLast();
+            }
         }
     }
 
@@ -190,8 +214,24 @@ public class PopLineParser {
             top.addToArray(arr);
             frames.addLast(arr);
         } else {
-            PlnValue val = parseScalar(rest);
+            // Check for suffix pop (only for leaf values)
+            StringBuilder sb = new StringBuilder(rest);
+            int suffixPop = trimPopSuffix(sb);
+            String trimmedRest = sb.toString();
+            if (trimmedRest.isEmpty()) {
+                throw new PlnParseException("empty value");
+            }
+            PlnValue val = parseScalar(trimmedRest);
+            if (val == null) {
+                // multi-line string started
+                return;
+            }
             top.addToArray(val);
+            // Apply suffix pop (with root protection)
+            for (int p = 0; p < suffixPop; p++) {
+                if (frames.size() <= 1) break;
+                frames.removeLast();
+            }
         }
     }
 
@@ -262,10 +302,14 @@ public class PopLineParser {
                     result.append('"');
                     i += 2;
                 } else {
-                    // line closes the string
+                    // line closes the string -- check for suffix pop
                     String after = line.substring(i + 1);
+                    int suffixPop = 0;
                     if (!after.strip().isEmpty()) {
-                        throw new PlnParseException("trailing content after closing quote");
+                        suffixPop = popSuffixAfter(after);
+                        if (suffixPop < 0) {
+                            throw new PlnParseException("trailing content after closing quote");
+                        }
                     }
                     inString = false;
                     String full = strbuf.toString() + result;
@@ -274,9 +318,14 @@ public class PopLineParser {
                     // add to parent
                     PlnValue top = frames.getLast();
                     if (top.getType() == PlnValue.Type.OBJECT) {
-                        top.addToObject(key, val);
+                        top.addToObject(currentKey, val);
                     } else {
                         top.addToArray(val);
+                    }
+                    // apply suffix pop (with root protection)
+                    for (int p = 0; p < suffixPop; p++) {
+                        if (frames.size() <= 1) break;
+                        frames.removeLast();
                     }
                     return;
                 }
@@ -287,6 +336,44 @@ public class PopLineParser {
         }
         // still not closed
         strbuf.append(result).append('\n');
+    }
+
+    /**
+     * Checks if the string ends with " N" (space followed by number).
+     * If so, removes the suffix from the StringBuilder and returns the pop count.
+     * Returns 0 if no pop suffix is present.
+     */
+    private int trimPopSuffix(StringBuilder sb) {
+        if (sb.length() < 2) return 0;
+        int i = sb.length() - 1;
+        char c = sb.charAt(i);
+        if (c < '0' || c > '9') return 0;
+        while (i > 0) {
+            char pc = sb.charAt(i - 1);
+            if (pc >= '0' && pc <= '9') i--;
+            else break;
+        }
+        if (i == 0 || sb.charAt(i - 1) != ' ') return 0;
+        int popCount = Integer.parseInt(sb.substring(i));
+        sb.setLength(i - 1);
+        return popCount;
+    }
+
+    /**
+     * Validates content after closing quote in multi-line strings.
+     * Returns pop count (0 for empty, N for " N" suffix, -1 for invalid).
+     */
+    private int popSuffixAfter(String s) {
+        if (s.isEmpty()) return 0;
+        if (s.charAt(0) != ' ') return -1;
+        if (s.length() < 2 || !Character.isDigit(s.charAt(1))) return -1;
+        int n = 0;
+        for (int i = 1; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c < '0' || c > '9') return -1;
+            n = n * 10 + (c - '0');
+        }
+        return n;
     }
 
     private boolean isKeyValid(String key) {
