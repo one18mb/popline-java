@@ -59,13 +59,6 @@ public class PopLineParser {
 
         // root level — return the new root to the caller
         if (frames.isEmpty()) {
-            // Check top-level inline containers: `[ [` or `[ {`
-            if (rest.length() > 1 && rest.charAt(0) == '[') {
-                String trimmed = rest.substring(1).stripLeading();
-                if (trimmed.length() > 0 && (trimmed.charAt(0) == '[' || trimmed.charAt(0) == '{')) {
-                    return parseInlineContainers(rest, frames);
-                }
-            }
             if (rest.equals("{")) {
                 PlnValue obj = PlnValue.newObject();
                 frames.addLast(obj);
@@ -87,34 +80,6 @@ public class PopLineParser {
         return null; // don't overwrite root
     }
 
-    /**
-     * Parse consecutive container openers on a single line: {@code [ [}, {@code [ {}, etc.
-     * Returns the root PlnValue if at top level, or null if added to existing frames.
-     */
-    private PlnValue parseInlineContainers(String s, Deque<PlnValue> frames) {
-        String part = s.strip();
-        boolean wasEmpty = frames.isEmpty();
-        while (part.length() > 0) {
-            char ch = part.charAt(0);
-            if (ch != '{' && ch != '[') {
-                throw new PlnParseException("inline containers must be '{' or '['");
-            }
-            PlnValue v = (ch == '{') ? PlnValue.newObject() : PlnValue.newArray();
-            if (frames.isEmpty()) {
-                frames.addLast(v);
-            } else {
-                PlnValue top = frames.getLast();
-                if (top.getType() == PlnValue.Type.OBJECT) {
-                    top.addToObject(currentKey, v);
-                } else {
-                    top.addToArray(v);
-                }
-                frames.addLast(v);
-            }
-            part = part.substring(1).stripLeading();
-        }
-        return wasEmpty ? frames.getFirst() : null;
-    }
 
     private void parseObjectLine(String rest, Deque<PlnValue> frames, PlnValue top) {
         int sep = rest.indexOf(": ");
@@ -127,15 +92,6 @@ public class PopLineParser {
         }
         String valPart = rest.substring(sep + 2);
 
-        // Check value inline containers: `key: [ [` or `key: [ {`
-        if (valPart.length() > 1 && (valPart.charAt(0) == '[' || valPart.charAt(0) == '{')) {
-            String trimmed = valPart.substring(1).stripLeading();
-            if (trimmed.length() > 0 && (trimmed.charAt(0) == '[' || trimmed.charAt(0) == '{')) {
-                currentKey = key;
-                parseInlineContainers(valPart, frames);
-                return;
-            }
-        }
 
         if (valPart.equals("{")) {
             PlnValue obj = PlnValue.newObject();
@@ -169,14 +125,6 @@ public class PopLineParser {
     }
 
     private void parseArrayLine(String rest, Deque<PlnValue> frames, PlnValue top) {
-        // Check array element inline containers: `[ [`、`[ {`、`{ [`、`{ {`
-        if (rest.length() > 1 && (rest.charAt(0) == '[' || rest.charAt(0) == '{')) {
-            String trimmed = rest.substring(1).stripLeading();
-            if (trimmed.length() > 0 && (trimmed.charAt(0) == '[' || trimmed.charAt(0) == '{')) {
-                parseInlineContainers(rest, frames);
-                return;
-            }
-        }
         if (rest.equals("{")) {
             PlnValue obj = PlnValue.newObject();
             top.addToArray(obj);
