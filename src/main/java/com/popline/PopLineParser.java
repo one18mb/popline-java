@@ -293,8 +293,8 @@ public class PopLineParser {
         if (key.isEmpty()) return false;
         for (int i = 0; i < key.length(); i++) {
             char c = key.charAt(i);
-            if (c == ':' || c == '"' || c == '{' || c == '}' ||
-                c == '[' || c == ']' || c == '#' ||
+            if (c == ':' || c == '"' || c == '{' ||
+                c == '[' || c == '#' ||
                 c == ' ' || c == '\t' || c == '\n' || c == '\r') {
                 return false;
             }
