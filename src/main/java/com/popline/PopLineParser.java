@@ -9,26 +9,42 @@ public class PopLineParser {
     private final StringBuilder strbuf = new StringBuilder();
     private String error;
     private String currentKey = "";
+    private boolean done = false;
 
     public PlnValue parse(String text) {
         stack.clear();
         inString = false;
         strbuf.setLength(0);
         error = null;
+        done = false;
 
         PlnValue root = null;
         Deque<PlnValue> frames = new ArrayDeque<>();
         String key = null;
 
+        // Strip trailing newlines to avoid false empty line errors
+        while (text.endsWith("\n")) {
+            text = text.substring(0, text.length() - 1);
+        }
+
         int len = text.length();
         int lineStart = 0;
 
-        for (int pos = 0; pos <= len; pos++) {
+        for (int pos = 0; pos <= len && !done; pos++) {
             if (pos < len && text.charAt(pos) != '\n') continue;
 
             String line = text.substring(lineStart, pos);
             if (!line.isEmpty() && line.charAt(line.length()-1) == '\r')
                 line = line.substring(0, line.length()-1);
+
+            if (line.isEmpty()) {
+                if (!frames.isEmpty()) {
+                    error = "empty line not allowed in message body";
+                    return null;
+                }
+                lineStart = pos + 1;
+                continue;
+            }
 
             try {
                 Object result = processLine(line, frames, root, key);
@@ -52,12 +68,12 @@ public class PopLineParser {
             return null;
         }
 
-        // skip empty lines (message separators)
+        // Empty lines handled in main loop
         if (line.isEmpty()) return null;
 
         String rest = line;
 
-        // root level — return the new root to the caller
+        // root level — support all types
         if (frames.isEmpty()) {
             if (rest.equals("{")) {
                 PlnValue obj = PlnValue.newObject();
@@ -68,7 +84,13 @@ public class PopLineParser {
                 frames.addLast(arr);
                 return arr;
             }
-            throw new PlnParseException("top level must be object or array");
+            // Scalar root
+            PlnValue val = parseScalar(rest);
+            if (val == null) {
+                throw new PlnParseException("multi-line string at root not supported");
+            }
+            done = true;
+            return val;
         }
 
         PlnValue top = frames.getLast();
@@ -258,12 +280,6 @@ public class PopLineParser {
         strbuf.append(result).append('\n');
     }
 
-    /**
-     * Checks if the string ends with " N" (space followed by number).
-     * If so, removes the suffix from the StringBuilder and returns the pop count.
-     * Returns 0 if no pop suffix is present.
-     */
-    /** Forward-scan for " N" pop suffix: when space found, check if rest is all digits */
     private int fwdTrimPopSuffix(StringBuilder sb) {
         boolean inString = false;
         for (int i = 0; i < sb.length(); i++) {
@@ -284,10 +300,6 @@ public class PopLineParser {
         return 0;
     }
 
-    /**
-     * Validates content after closing quote in multi-line strings.
-     * Returns pop count (0 for empty, N for " N" suffix, -1 for invalid).
-     */
     private int popSuffixAfter(String s) {
         if (s.isEmpty()) return 0;
         if (s.charAt(0) != ' ') return -1;

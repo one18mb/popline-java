@@ -35,6 +35,16 @@ public class PopLineTest {
         assertEquals(PlnValue.Type.NULL, v.getObject().get("c").getType());
     }
 
+    @Test void testScalarRoot() {
+        assertEquals(42L, parse("42").getInt());
+        assertEquals(PlnValue.Type.FLOAT, parse("3.14").getType());
+        assertEquals("hello", parse("\"hello\"").getString());
+        assertTrue(parse("true").getBool());
+        assertFalse(parse("false").getBool());
+        assertEquals(PlnValue.Type.NULL, parse("null").getType());
+        assertEquals(-42L, parse("-42").getInt());
+    }
+
     @Test void testNesting() {
         PlnValue v = parse("{\nouter: {\ninner: \"value\"\n");
         assertEquals("value", v.getObject().get("outer").getObject().get("inner").getString());
@@ -57,11 +67,13 @@ public class PopLineTest {
     }
 
     @Test void testErrors() {
-        assertNull(parse("42\n"));
-        assertNull(parse("\"str\"\n"));
-        assertNull(parse("true\n"));
         assertNull(parse("{\nbad:key: 1\n"));
         assertNull(parse("{\n\"key\": 1\n"));
+    }
+
+    @Test void testEmptyLines() {
+        // Empty line inside container should fail
+        assertNull(parse("{\n\nkey: 1\n"));
     }
 
     // ═══════════════ Roundtrip ═══════════════
@@ -74,6 +86,18 @@ public class PopLineTest {
             "{\na: [\n1\n2 1\nb: true\n",
             "{\na: true\nb: false\nc: null\n",
         };
+        for (String input : cases) {
+            PlnValue v1 = parse(input);
+            assertNotNull(v1);
+            String s = serialize(v1);
+            PlnValue v2 = parse(s);
+            assertNotNull(v2);
+            assertEquals(v1, v2);
+        }
+    }
+
+    @Test void testScalarRoundtrip() {
+        String[] cases = {"42", "-42", "3.14", "\"hello\"", "true", "false", "null"};
         for (String input : cases) {
             PlnValue v1 = parse(input);
             assertNotNull(v1);
