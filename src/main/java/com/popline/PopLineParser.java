@@ -9,14 +9,12 @@ public class PopLineParser {
     private final StringBuilder strbuf = new StringBuilder();
     private String error;
     private String currentKey = "";
-    private boolean done = false;
 
     public PlnValue parse(String text) {
         stack.clear();
         inString = false;
         strbuf.setLength(0);
         error = null;
-        done = false;
 
         PlnValue root = null;
         Deque<PlnValue> frames = new ArrayDeque<>();
@@ -30,7 +28,7 @@ public class PopLineParser {
         int len = text.length();
         int lineStart = 0;
 
-        for (int pos = 0; pos <= len && !done; pos++) {
+        for (int pos = 0; pos <= len; pos++) {
             if (pos < len && text.charAt(pos) != '\n') continue;
 
             String line = text.substring(lineStart, pos);
@@ -48,7 +46,12 @@ public class PopLineParser {
 
             try {
                 Object result = processLine(line, frames, root, key);
-                if (result instanceof PlnValue) root = (PlnValue) result;
+                if (result instanceof PlnValue) {
+                    root = (PlnValue) result;
+                    if (frames.isEmpty()) {
+                        return root;
+                    }
+                }
                 else if (result instanceof String) key = (String) result;
             } catch (PlnParseException e) {
                 error = e.getMessage();
@@ -89,7 +92,6 @@ public class PopLineParser {
             if (val == null) {
                 throw new PlnParseException("multi-line string at root not supported");
             }
-            done = true;
             return val;
         }
 
@@ -128,9 +130,6 @@ public class PopLineParser {
             StringBuilder sb = new StringBuilder(valPart);
             int suffixPop = fwdTrimPopSuffix(sb);
             String trimmedVal = sb.toString();
-            if (trimmedVal.isEmpty()) {
-                throw new PlnParseException("empty value");
-            }
             PlnValue val = parseScalar(trimmedVal);
             if (val == null) {
                 // multi-line string started, save the key
@@ -160,9 +159,6 @@ public class PopLineParser {
             StringBuilder sb = new StringBuilder(rest);
             int suffixPop = fwdTrimPopSuffix(sb);
             String trimmedRest = sb.toString();
-            if (trimmedRest.isEmpty()) {
-                throw new PlnParseException("empty value");
-            }
             PlnValue val = parseScalar(trimmedRest);
             if (val == null) {
                 // multi-line string started
