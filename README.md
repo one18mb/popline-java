@@ -31,7 +31,7 @@ obj.addToObject("count", PlnValue.newInt(42));
 
 ## 性能
 
-测试数据：`package.json`（17011 B）→ `package.pln`（13074 B，**76.9%**），5000 次迭代
+测试数据：`test-package.json`（17011 B）→ `test-package.pln`（13074 B，**76.9%**），5000 次迭代
 
 | 操作 | org.json | popline | 比 |
 |------|---------|---------|------|

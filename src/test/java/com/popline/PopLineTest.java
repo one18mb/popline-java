@@ -111,8 +111,8 @@ public class PopLineTest {
     // ═══════════════ Real Data Consistency ═══════════════
 
     @Test void testRealDataConsistency() throws Exception {
-        File jsonFile = new File("package.json");
-        File plnFile = new File("package.pln");
+        File jsonFile = new File("test-package.json");
+        File plnFile = new File("test-package.pln");
         if (!jsonFile.exists() || !plnFile.exists()) return;
 
         String jsonText = new String(java.nio.file.Files.readAllBytes(jsonFile.toPath()));
@@ -164,8 +164,8 @@ public class PopLineTest {
     // ═══════════════ Performance Benchmark ═══════════════
 
     @Test void testBenchmark() throws Exception {
-        File jsonFile = new File("package.json");
-        File plnFile = new File("package.pln");
+        File jsonFile = new File("test-package.json");
+        File plnFile = new File("test-package.pln");
         if (!jsonFile.exists() || !plnFile.exists()) return;
 
         String jsonText = new String(java.nio.file.Files.readAllBytes(jsonFile.toPath()));
