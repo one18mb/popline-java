@@ -31,7 +31,7 @@ obj.addToObject("count", PlnValue.newInt(42));
 
 ## Performance
 
-Data: `test-package.json` (17011 B) / `test-package.pln` (13074 B, 76.9%)
+Data: `test.json` (17011 B) / `test.pln` (13074 B, 76.9%)
 
 | Operation | org.json | popline | Ratio |
 |-----------|---------|---------|-------|
