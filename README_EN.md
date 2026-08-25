@@ -47,5 +47,4 @@ mvn package
 
 ## Acknowledgments
 This project was developed with the assistance of:
-- [Claude Code](https://claude.ai) (Anthropic)
 - [DeepSeek](https://deepseek.com) (DeepSeek)
